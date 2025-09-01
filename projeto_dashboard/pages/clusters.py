@@ -44,20 +44,26 @@ df_cluster = df_comparado.groupby("ID")[["Valence", "Arousal"]].mean().reset_ind
 # Slider para número de clusters
 k = st.slider("Seleciona o número de clusters", min_value=2, max_value=6, value=3)
 
+# Agrupar mantendo os nomes
+df_cluster = (
+    df_comparado
+    .groupby(["ID", "Jogadora"])[["Valence", "Arousal"]]
+    .mean()
+    .reset_index()
+)
+
 # Aplicar K-Means
 kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
 df_cluster["Cluster"] = kmeans.fit_predict(df_cluster[["Valence", "Arousal"]])
-
-# Nomear os clusters como "Grupo 1", "Grupo 2", ...
 df_cluster["Grupo"] = df_cluster["Cluster"].apply(lambda x: f"Grupo {x + 1}")
 
-# --- Gráfico interativo
+# Gráfico com nomes
 fig = px.scatter(
     df_cluster,
     x="Valence",
     y="Arousal",
     color="Grupo",
-    text=df_cluster["ID"].apply(lambda x: f"ID {x}"),
+    text=df_cluster["Jogadora"],
     title=f"Clusters de Perfis Emocionais (K-Means, k={k})",
     labels={"Valence": "Valence Médio", "Arousal": "Arousal Médio"},
     height=600
@@ -66,7 +72,8 @@ fig.update_traces(textposition="top center", textfont=dict(color="black"), marke
 fig.update_layout(plot_bgcolor="white")
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Tabela com jogadoras por grupo
+# Tabela com nomes
 st.subheader("📋 Jogadoras por Grupo")
-df_cluster = df_cluster[["ID", "Grupo"]].rename(columns={"ID": "Identificador"})
+df_cluster = df_cluster[["Jogadora", "Grupo"]].rename(columns={"Jogadora": "Nome da Atleta"})
 st.dataframe(df_cluster.sort_values("Grupo"))
+
