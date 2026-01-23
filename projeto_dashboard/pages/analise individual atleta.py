@@ -98,38 +98,58 @@ st.download_button(
     mime="image/png"
 )
 
-# --- 3. RADAR CHART ---
-st.subheader("🧭 Average Emotional Profile (Radar)")
-emotion_cols = ["Neutral", "Happy", "Sad", "Angry", "Surprised", "Scared", "Disgusted"]
-medias = df_atleta[emotion_cols].mean()
+# --- 3. RADAR CHART (CORRIGIDO) ---
+st.subheader("🧭 Average Emotional Profile (Expressive Only)")
 
-# Lógica de normalização (mantida do teu código original)
-expressivas = medias.drop("Neutral")
-expressivas_norm = expressivas / expressivas.sum()
-medias.update(expressivas_norm)
+# 1. Definir apenas as emoções expressivas (SEM NEUTRAL)
+expressive_cols = ["Happy", "Sad", "Angry", "Surprised", "Scared", "Disgusted"]
+medias = df_atleta[expressive_cols].mean()
 
-valores = medias.values
-angles = np.linspace(0, 2 * np.pi, len(emotion_cols), endpoint=False).tolist()
-valores = np.concatenate((valores, [valores[0]]))
-angles += [angles[0]]
+# 2. Verificar se há dados expressivos para evitar divisão por zero
+soma_expressiva = medias.sum()
 
-fig_radar, ax_radar = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-ax_radar.plot(angles, valores, 'o-', linewidth=2)
-ax_radar.fill(angles, valores, alpha=0.25)
-ax_radar.set_thetagrids(np.degrees(angles[:-1]), emotion_cols)
-ax_radar.set_title(f"Emotional Profile (Normalized) - ID {id_atleta}", y=1.1)
-ax_radar.grid(True)
-st.pyplot(fig_radar)
+if soma_expressiva > 0.001:  # Se houver alguma expressão mínima
+    # Normalizar: Transforma em "Quota de Mercado" da emoção (Soma = 100%)
+    valores_norm = medias / soma_expressiva
+    
+    # Preparar dados para o plot
+    valores = valores_norm.values
+    angles = np.linspace(0, 2 * np.pi, len(expressive_cols), endpoint=False).tolist()
+    
+    # Fechar o ciclo do radar (repetir o primeiro valor no fim)
+    valores = np.concatenate((valores, [valores[0]]))
+    angles += [angles[0]]
+    
+    # Plotar
+    fig_radar, ax_radar = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax_radar.plot(angles, valores, 'o-', linewidth=2, color='dodgerblue')
+    ax_radar.fill(angles, valores, alpha=0.25, color='dodgerblue')
+    
+    # Ajustar labels
+    ax_radar.set_thetagrids(np.degrees(angles[:-1]), expressive_cols)
+    ax_radar.set_title(f"Expressive Profile (Normalized) - ID {id_atleta}", y=1.1)
+    
+    # Definir limite fixo para ser fácil comparar (0 a 1, ou seja, 0% a 100%)
+    ax_radar.set_ylim(0, 1)
+    
+    # Remover labels radiais numéricas para limpar o visual (opcional)
+    # ax_radar.set_yticklabels([]) 
+    
+    ax_radar.grid(True, linestyle='--', alpha=0.5)
+    st.pyplot(fig_radar)
+    
+    # Botão Download
+    fn_radar = io.BytesIO()
+    fig_radar.savefig(fn_radar, format='png', bbox_inches='tight')
+    st.download_button(
+        label="💾 Download Radar Chart",
+        data=fn_radar,
+        file_name=f"radar_chart_ID{id_atleta}.png",
+        mime="image/png"
+    )
 
-# Botão de Download
-fn_radar = io.BytesIO()
-fig_radar.savefig(fn_radar, format='png', bbox_inches='tight')
-st.download_button(
-    label="💾 Download Radar Chart",
-    data=fn_radar,
-    file_name=f"radar_chart_ID{id_atleta}.png",
-    mime="image/png"
-)
+else:
+    st.info("⚠️ This athlete showed almost 100% Neutrality (no expressive emotions detected).")
 
 # --- 4. TABELAS DE DADOS ---
 st.subheader("📋 Mean and Max Values per Image")
@@ -233,3 +253,4 @@ with col2:
         file_name=f"quadrant_max_ID{id_atleta}.png",
         mime="image/png"
     )
+
