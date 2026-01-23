@@ -36,10 +36,10 @@ df_oasis["Imagem"] = df_oasis["Imagem"].astype(str).str.strip()
 df_comparado = df_comparado.merge(df_oasis, on="Imagem", how="left")
 df_comparado = calcular_distancias_ao_oasis(df_comparado)
 
-# --- Clustering
+# --- Clustering Analysis
 st.subheader("📊 Athlete Clustering based on Average Emotional Profile")
 
-# 1. Agrupar por ID (Perfil Médio da Atleta)
+# 1. Agrupar por ID (Perfil Médio)
 df_comparado = df_comparado.merge(df[["Atleta", "ID"]].drop_duplicates(), left_on="Jogadora", right_on="Atleta")
 
 df_cluster = (
@@ -50,10 +50,8 @@ df_cluster = (
 )
 df_cluster["Label"] = df_cluster["ID"].apply(lambda x: f"ID {x}")
 
-# 2. Configuração do Modelo
-col1, col2 = st.columns([1, 2])
-with col1:
-    k = st.slider("Select number of clusters (k)", min_value=2, max_value=5, value=3)
+# 2. Configuração
+k = st.slider("Select number of clusters (k)", min_value=2, max_value=5, value=3)
 
 # 3. Aplicar K-Means
 kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
@@ -61,19 +59,10 @@ X = df_cluster[["Valence", "Arousal"]]
 df_cluster["Cluster_Num"] = kmeans.fit_predict(X)
 df_cluster["Cluster"] = df_cluster["Cluster_Num"].apply(lambda x: f"Cluster {x + 1}")
 
-# 4. Calcular Silhouette Score (Qualidade Matemática)
+# 4. Calcular Silhouette Score
 score = silhouette_score(X, df_cluster["Cluster_Num"])
 
-# Mostrar métrica de qualidade
-with col2:
-    st.metric(
-        label="Silhouette Score (Cluster Quality)", 
-        value=f"{score:.3f}", 
-        delta="Good > 0.4" if score > 0.4 else "Weak < 0.25",
-        help="Values near 1.0 indicate excellent separation. Values near 0 indicate overlapping clusters."
-    )
-
-# 5. Criar Gráfico com Centróides
+# 5. Criar Gráfico
 fig = px.scatter(
     df_cluster,
     x="Valence",
@@ -82,10 +71,11 @@ fig = px.scatter(
     text="Label",
     title=f"Emotional Profile Clusters (k={k})",
     labels={"Valence": "Mean Valence", "Arousal": "Mean Arousal"},
-    height=600
+    height=600,
+    template="plotly_white"  # Garante fundo branco para o artigo!
 )
 
-# Adicionar Centróides (Os "Centros" dos Grupos)
+# Adicionar Centróides
 centroids = kmeans.cluster_centers_
 fig.add_trace(
     go.Scatter(
@@ -98,6 +88,18 @@ fig.add_trace(
     )
 )
 
+# --- NOVIDADE: Adicionar o Score DENTRO do Gráfico ---
+fig.add_annotation(
+    text=f"<b>Silhouette Score: {score:.3f}</b>",
+    xref="paper", yref="paper",
+    x=0.02, y=0.98,  # Posição (Canto Superior Esquerdo)
+    showarrow=False,
+    font=dict(size=14, color="black"),
+    bgcolor="rgba(255, 255, 255, 0.9)",
+    bordercolor="black",
+    borderwidth=1
+)
+
 # Estilização Profissional
 fig.update_traces(
     textposition="top center", 
@@ -106,17 +108,22 @@ fig.update_traces(
 )
 
 fig.update_layout(
-    plot_bgcolor="white",
-    xaxis=dict(showgrid=True, gridcolor='lightgrey', range=[-1.1, 1.1], zeroline=True, zerolinecolor='black'),
-    yaxis=dict(showgrid=True, gridcolor='lightgrey', range=[-0.1, 1.1], zeroline=True, zerolinecolor='black'),
-    legend_title_text='Group'
+    xaxis=dict(showgrid=True, gridcolor='#E5E5E5', range=[-1.1, 1.1], zeroline=True, zerolinecolor='black'),
+    yaxis=dict(showgrid=True, gridcolor='#E5E5E5', range=[-0.1, 1.1], zeroline=True, zerolinecolor='black'),
+    legend_title_text='Group',
+    legend=dict(
+        yanchor="top",
+        y=0.99,
+        xanchor="right",
+        x=0.99
+    )
 )
 
-# Configurar Download
+# Configurar Download Alta Resolução
 config = {
     'toImageButtonOptions': {
         'format': 'png',
-        'filename': 'kmeans_clusters_high_res',
+        'filename': 'kmeans_clusters_final',
         'height': 800,
         'width': 1200,
         'scale': 2
@@ -132,5 +139,6 @@ st.dataframe(df_tabela.sort_values("Cluster").style.format({
     "Valence": "{:.3f}",
     "Arousal": "{:.3f}"
 }))
+
 
 
