@@ -145,9 +145,9 @@ with tab_global:
         st.info("💡 **Tip for Arousal:** Try selecting **'Max (Peak Positive)'**. Since Arousal is purely intensity (0 to 1), the Maximum usually captures the true reaction better than the Mean.")
     elif metric == "Valence":
         st.info("💡 **Tip for Valence:** \n- For **Happy** images, use **'Max'**.\n- For **Sad/Angry** images, use **'Min'**.\n- The 'Mean' tends to flatten everything towards zero.")
-        
 
-st.markdown("---")
+    # --- NOVA SECÇÃO DE ESTATÍSTICA (GLOBAL PEAKS) ---
+    st.markdown("---")
     st.subheader("📊 Statistical Validation (Global Peaks)")
 
     # Preparar dados baseados na lógica de Picos que definimos para o artigo
@@ -193,6 +193,7 @@ st.markdown("---")
     st.table(df_table)
     
     st.caption("ℹ️ This table uses the peak logic: Min for Valence, Max for Arousal.")
+
 # ==============================================================================
 # ABA 2: ANÁLISE INDIVIDUAL
 # ==============================================================================
@@ -320,8 +321,6 @@ with tab_individual:
         ]
     })
 
-    # --- CORREÇÃO DO ERRO AQUI ---
-    # Só formatamos as colunas numéricas
     float_cols_stats = df_stats.select_dtypes(include='float').columns
     st.dataframe(df_stats.style.format("{:.3f}", subset=float_cols_stats))
 
@@ -333,13 +332,11 @@ with tab_individual:
 
     if not discrepancias.empty:
         st.warning("⚠️ High Discrepancies Detected (FaceReader vs Survey > 0.4)")
-        # Selecionar apenas as colunas que queremos mostrar e renomear
         df_discr_show = discrepancias[["Imagem", "Val_diff", "Aro_diff"]].rename(columns={
             "Val_diff": "Diff Valence", "Aro_diff": "Diff Arousal"
         })
-        # --- CORREÇÃO DO ERRO AQUI ---
-        # Aplicamos formatação apenas nas colunas numéricas (Diff Valence e Diff Arousal)
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
 
 
