@@ -146,7 +146,8 @@ with tab_global:
     elif metric == "Valence":
         st.info("💡 **Tip for Valence:** \n- For **Happy** images, use **'Max'**.\n- For **Sad/Angry** images, use **'Min'**.\n- The 'Mean' tends to flatten everything towards zero.")
 
-   st.markdown("---")
+    # --- TABELA COMPARATIVA: MÉDIA VS PICO ---
+    st.markdown("---")
     st.subheader("📊 Statistical Validation: Mean vs. Peak")
 
     # 1. Calcular Dados Agregados por MÉDIA (Baseline)
@@ -168,8 +169,6 @@ with tab_global:
     def get_row_data(df, metric, label):
         fr = f"{metric}_FaceReader"
         inq = f"{metric}_Inquerito"
-        oasis = f"{metric_name}_OASIS" if "OASIS" not in metric else metric # Pequeno fix se o nome variar
-        
         # O nome da coluna OASIS é fixo como Valence_OASIS ou Arousal_OASIS
         col_oasis = f"{metric}_OASIS"
 
@@ -340,6 +339,7 @@ with tab_individual:
             "Val_diff": "Diff Valence", "Aro_diff": "Diff Arousal"
         })
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
 
 
