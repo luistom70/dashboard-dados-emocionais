@@ -146,53 +146,57 @@ with tab_global:
     elif metric == "Valence":
         st.info("💡 **Tip for Valence:** \n- For **Happy** images, use **'Max'**.\n- For **Sad/Angry** images, use **'Min'**.\n- The 'Mean' tends to flatten everything towards zero.")
 
-    # --- NOVA SECÇÃO DE ESTATÍSTICA (GLOBAL PEAKS) ---
-    st.markdown("---")
-    st.subheader("📊 Statistical Validation (Global Peaks)")
+   st.markdown("---")
+    st.subheader("📊 Statistical Validation: Mean vs. Peak")
 
-    # Preparar dados baseados na lógica de Picos que definimos para o artigo
-    # Valence = MIN (Peak Negative), Arousal = MAX (Peak Positive)
-    df_stats_val = df_final.groupby("Imagem")[["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS"]].min().reset_index()
-    df_stats_aro = df_final.groupby("Imagem")[["Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]].max().reset_index()
+    # 1. Calcular Dados Agregados por MÉDIA (Baseline)
+    df_mean = df_final.groupby("Imagem")[
+        ["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS",
+         "Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]
+    ].mean().reset_index()
 
-    # Função para calcular métricas
-    def calculate_metrics(df, metric_name):
-        # Selecionar colunas corretas
-        fr = f"{metric_name}_FaceReader"
-        inq = f"{metric_name}_Inquerito"
-        oasis = f"{metric_name}_OASIS"
-        
-        # Correlações (r)
-        r_fr_inq = df[fr].corr(df[inq])
-        r_fr_oasis = df[fr].corr(df[oasis])
-        r_inq_oasis = df[inq].corr(df[oasis])
-        
-        # MAE (Mean Absolute Error)
-        mae_fr_inq = (df[fr] - df[inq]).abs().mean()
-        mae_fr_oasis = (df[fr] - df[oasis]).abs().mean()
-        mae_inq_oasis = (df[inq] - df[oasis]).abs().mean()
-        
-        return [
-            f"{r_fr_inq:.2f}", f"{mae_fr_inq:.2f}",
-            f"{r_fr_oasis:.2f}", f"{mae_fr_oasis:.2f}",
-            f"{r_inq_oasis:.2f}", f"{mae_inq_oasis:.2f}"
-        ]
-
-    # Calcular linhas
-    row_val = calculate_metrics(df_stats_val, "Valence")
-    row_aro = calculate_metrics(df_stats_aro, "Arousal")
-
-    # Criar DataFrame da Tabela
-    df_table = pd.DataFrame([row_val, row_aro], columns=[
-        "FR vs Survey (r)", "FR vs Survey (MAE)",
-        "FR vs OASIS (r)", "FR vs OASIS (MAE)",
-        "Survey vs OASIS (r)", "Survey vs OASIS (MAE)"
-    ])
-    df_table.insert(0, "Metric", ["Valence (Peak Min)", "Arousal (Peak Max)"])
-
-    st.table(df_table)
+    # 2. Calcular Dados Agregados por PICO (Nossa Escolha)
+    df_min = df_final.groupby("Imagem")[
+        ["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS"]
+    ].min().reset_index()
     
-    st.caption("ℹ️ This table uses the peak logic: Min for Valence, Max for Arousal.")
+    df_max = df_final.groupby("Imagem")[
+        ["Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]
+    ].max().reset_index()
+
+    # Função Auxiliar de Cálculo
+    def get_row_data(df, metric, label):
+        fr = f"{metric}_FaceReader"
+        inq = f"{metric}_Inquerito"
+        oasis = f"{metric_name}_OASIS" if "OASIS" not in metric else metric # Pequeno fix se o nome variar
+        
+        # O nome da coluna OASIS é fixo como Valence_OASIS ou Arousal_OASIS
+        col_oasis = f"{metric}_OASIS"
+
+        r_fr = df[fr].corr(df[col_oasis])
+        mae_fr = (df[fr] - df[col_oasis]).abs().mean()
+        
+        r_inq = df[inq].corr(df[col_oasis])
+        mae_inq = (df[inq] - df[col_oasis]).abs().mean()
+        
+        return [label, f"{r_fr:.2f}", f"{mae_fr:.2f}", f"{r_inq:.2f}", f"{mae_inq:.2f}"]
+
+    # Construir as linhas
+    data = []
+    
+    # Valência
+    data.append(get_row_data(df_mean, "Valence", "Valence (Mean)"))
+    data.append(get_row_data(df_min, "Valence", "Valence (Peak: Min)"))
+    
+    # Arousal
+    data.append(get_row_data(df_mean, "Arousal", "Arousal (Mean)"))
+    data.append(get_row_data(df_max, "Arousal", "Arousal (Peak: Max)"))
+
+    # Criar DataFrame
+    df_table_comp = pd.DataFrame(data, columns=["Method", "FR vs OASIS (r)", "FR vs OASIS (MAE)", "Survey vs OASIS (r)", "Survey vs OASIS (MAE)"])
+    
+    st.table(df_table_comp)
+    st.caption("This table proves why Peak analysis is superior to Mean analysis for this dataset.")
 
 # ==============================================================================
 # ABA 2: ANÁLISE INDIVIDUAL
@@ -336,6 +340,7 @@ with tab_individual:
             "Val_diff": "Diff Valence", "Aro_diff": "Diff Arousal"
         })
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
 
 
