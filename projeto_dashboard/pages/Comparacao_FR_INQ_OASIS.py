@@ -29,11 +29,21 @@ df_comparado = adicionar_distancia_emocional(df_comparado)
 
 df_comparado["Imagem"] = df_comparado["Imagem"].astype(str).str.strip()
 df_oasis["Imagem"] = df_oasis["Imagem"].astype(str).str.strip()
+
 # Juntar OASIS
 df_final = df_comparado.merge(df_oasis, on="Imagem", how="left")
 
+# --- CORREÇÃO DO ERRO ---
+# Renomear as colunas do FaceReader para o formato esperado pelo código abaixo
+df_final = df_final.rename(columns={
+    "Valence": "Valence_FaceReader",
+    "Arousal": "Arousal_FaceReader"
+})
+# ------------------------
+
 # IDs para seleção individual
 df["ID"] = df["Atleta"].astype("category").cat.codes + 1
+# Garantir que temos o ID no df_final
 df_final = df_final.merge(df[["Atleta", "ID"]].drop_duplicates(), left_on="Jogadora", right_on="Atleta")
 
 # --- CRIAÇÃO DAS ABAS ---
@@ -47,6 +57,7 @@ with tab_global:
     st.caption("This view compares the mean values across all athletes to identify general trends and discrepancies.")
 
     # Calcular Médias Globais por Imagem
+    # AGORA JÁ VAI FUNCIONAR porque renomeámos as colunas em cima
     df_global = df_final.groupby("Imagem")[
         ["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS",
          "Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]
@@ -63,6 +74,8 @@ with tab_global:
     # Preparar dados Plotly
     cols = [f"{metric}_FaceReader", f"{metric}_Inquerito", f"{metric}_OASIS"]
     df_melt = df_global.melt(id_vars=["Label"], value_vars=cols, var_name="Source", value_name="Value")
+    
+    # Limpar nomes para a legenda ficar bonita
     df_melt["Source"] = df_melt["Source"].str.replace(f"{metric}_", "").replace("Inquerito", "Survey")
 
     # Cores
@@ -115,16 +128,21 @@ with tab_individual:
     # --- GRÁFICO 1: Barras Integradas ---
     st.subheader(f"📊 Integrated Comparison - {nome_sel}")
     
+    # Cores (reutilizar dicionário)
+    colors = {"FaceReader": "#1f77b4", "Survey": "#ff7f0e", "OASIS": "#2ca02c"}
+
     # Preparar dados para Facet Plot
-    df_val = df_sel[["Imagem", "Valence", "Valence_Inquerito", "Valence_OASIS"]].melt(
+    # Nota: Aqui usamos as colunas já renomeadas (Valence_FaceReader, etc.)
+    df_val = df_sel[["Imagem", "Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS"]].melt(
         id_vars="Imagem", var_name="Fonte", value_name="Valor")
     df_val["Dimension"] = "Valence"
     
-    df_ar = df_sel[["Imagem", "Arousal", "Arousal_Inquerito", "Arousal_OASIS"]].melt(
+    df_ar = df_sel[["Imagem", "Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]].melt(
         id_vars="Imagem", var_name="Fonte", value_name="Valor")
     df_ar["Dimension"] = "Arousal"
     
     df_plot = pd.concat([df_val, df_ar])
+    
     # Limpar nomes das fontes para Inglês
     df_plot["Fonte"] = df_plot["Fonte"].str.replace("Valence_", "").str.replace("Arousal_", "").str.replace("Inquerito", "Survey")
     
@@ -154,13 +172,13 @@ with tab_individual:
     with col1:
         st.subheader("FaceReader vs. OASIS")
         # Valence
-        fig_v1 = px.scatter(df_sel, x="Valence_OASIS", y="Valence", text="Imagem", title="Valence")
+        fig_v1 = px.scatter(df_sel, x="Valence_OASIS", y="Valence_FaceReader", text="Imagem", title="Valence")
         fig_v1.add_shape(type="line", x0=-1, x1=1, y0=-1, y1=1, line=dict(dash="dash", color="gray"))
         fig_v1.update_layout(template="plotly_white", xaxis_title="OASIS", yaxis_title="FaceReader")
         st.plotly_chart(fig_v1, use_container_width=True)
         
         # Arousal
-        fig_a1 = px.scatter(df_sel, x="Arousal_OASIS", y="Arousal", text="Imagem", title="Arousal")
+        fig_a1 = px.scatter(df_sel, x="Arousal_OASIS", y="Arousal_FaceReader", text="Imagem", title="Arousal")
         fig_a1.add_shape(type="line", x0=0, x1=1, y0=0, y1=1, line=dict(dash="dash", color="gray"))
         fig_a1.update_layout(template="plotly_white", xaxis_title="OASIS", yaxis_title="FaceReader")
         st.plotly_chart(fig_a1, use_container_width=True)
@@ -182,33 +200,33 @@ with tab_individual:
     # --- TABELAS ---
     st.subheader("📋 Correlation & Error Summary")
     
-    # Cálculos
-    corr_val_fr_inq = df_sel[["Valence", "Valence_Inquerito"]].corr().iloc[0, 1]
-    corr_ar_fr_inq = df_sel[["Arousal", "Arousal_Inquerito"]].corr().iloc[0, 1]
+    # Cálculos usando as colunas renomeadas
+    corr_val_fr_inq = df_sel[["Valence_FaceReader", "Valence_Inquerito"]].corr().iloc[0, 1]
+    corr_ar_fr_inq = df_sel[["Arousal_FaceReader", "Arousal_Inquerito"]].corr().iloc[0, 1]
     
-    corr_val_fo = df_sel[["Valence", "Valence_OASIS"]].corr().iloc[0, 1]
-    corr_ar_fo = df_sel[["Arousal", "Arousal_OASIS"]].corr().iloc[0, 1]
+    corr_val_fo = df_sel[["Valence_FaceReader", "Valence_OASIS"]].corr().iloc[0, 1]
+    corr_ar_fo = df_sel[["Arousal_FaceReader", "Arousal_OASIS"]].corr().iloc[0, 1]
     
     corr_val_io = df_sel[["Valence_Inquerito", "Valence_OASIS"]].corr().iloc[0, 1]
     corr_ar_io = df_sel[["Arousal_Inquerito", "Arousal_OASIS"]].corr().iloc[0, 1]
 
     # MAE (Erro Médio Absoluto)
-    mae_val = np.mean((df_sel["Valence"] - df_sel["Valence_Inquerito"]).abs())
-    mae_ar = np.mean((df_sel["Arousal"] - df_sel["Arousal_Inquerito"]).abs())
+    mae_val = np.mean((df_sel["Valence_FaceReader"] - df_sel["Valence_Inquerito"]).abs())
+    mae_ar = np.mean((df_sel["Arousal_FaceReader"] - df_sel["Arousal_Inquerito"]).abs())
 
     df_stats = pd.DataFrame({
         "Comparison": ["FaceReader vs Survey", "FaceReader vs OASIS", "Survey vs OASIS"],
         "Valence (r)": [corr_val_fr_inq, corr_val_fo, corr_val_io],
         "Arousal (r)": [corr_ar_fr_inq, corr_ar_fo, corr_ar_io],
-        "Valence (MAE)": [mae_val, np.mean((df_sel["Valence"] - df_sel["Valence_OASIS"]).abs()), np.mean((df_sel["Valence_Inquerito"] - df_sel["Valence_OASIS"]).abs())],
-        "Arousal (MAE)": [mae_ar, np.mean((df_sel["Arousal"] - df_sel["Arousal_OASIS"]).abs()), np.mean((df_sel["Arousal_Inquerito"] - df_sel["Arousal_OASIS"]).abs())]
+        "Valence (MAE)": [mae_val, np.mean((df_sel["Valence_FaceReader"] - df_sel["Valence_OASIS"]).abs()), np.mean((df_sel["Valence_Inquerito"] - df_sel["Valence_OASIS"]).abs())],
+        "Arousal (MAE)": [mae_ar, np.mean((df_sel["Arousal_FaceReader"] - df_sel["Arousal_OASIS"]).abs()), np.mean((df_sel["Arousal_Inquerito"] - df_sel["Arousal_OASIS"]).abs())]
     })
 
     st.dataframe(df_stats.style.format("{:.3f}"))
 
     # Discrepâncias
-    df_sel["Val_diff"] = (df_sel["Valence"] - df_sel["Valence_Inquerito"]).abs()
-    df_sel["Aro_diff"] = (df_sel["Arousal"] - df_sel["Arousal_Inquerito"]).abs()
+    df_sel["Val_diff"] = (df_sel["Valence_FaceReader"] - df_sel["Valence_Inquerito"]).abs()
+    df_sel["Aro_diff"] = (df_sel["Arousal_FaceReader"] - df_sel["Arousal_Inquerito"]).abs()
     
     # Filtro para grandes erros (> 0.4)
     discrepancias = df_sel[(df_sel["Val_diff"] > 0.4) | (df_sel["Aro_diff"] > 0.4)]
