@@ -145,7 +145,54 @@ with tab_global:
         st.info("💡 **Tip for Arousal:** Try selecting **'Max (Peak Positive)'**. Since Arousal is purely intensity (0 to 1), the Maximum usually captures the true reaction better than the Mean.")
     elif metric == "Valence":
         st.info("💡 **Tip for Valence:** \n- For **Happy** images, use **'Max'**.\n- For **Sad/Angry** images, use **'Min'**.\n- The 'Mean' tends to flatten everything towards zero.")
+        
 
+st.markdown("---")
+    st.subheader("📊 Statistical Validation (Global Peaks)")
+
+    # Preparar dados baseados na lógica de Picos que definimos para o artigo
+    # Valence = MIN (Peak Negative), Arousal = MAX (Peak Positive)
+    df_stats_val = df_final.groupby("Imagem")[["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS"]].min().reset_index()
+    df_stats_aro = df_final.groupby("Imagem")[["Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]].max().reset_index()
+
+    # Função para calcular métricas
+    def calculate_metrics(df, metric_name):
+        # Selecionar colunas corretas
+        fr = f"{metric_name}_FaceReader"
+        inq = f"{metric_name}_Inquerito"
+        oasis = f"{metric_name}_OASIS"
+        
+        # Correlações (r)
+        r_fr_inq = df[fr].corr(df[inq])
+        r_fr_oasis = df[fr].corr(df[oasis])
+        r_inq_oasis = df[inq].corr(df[oasis])
+        
+        # MAE (Mean Absolute Error)
+        mae_fr_inq = (df[fr] - df[inq]).abs().mean()
+        mae_fr_oasis = (df[fr] - df[oasis]).abs().mean()
+        mae_inq_oasis = (df[inq] - df[oasis]).abs().mean()
+        
+        return [
+            f"{r_fr_inq:.2f}", f"{mae_fr_inq:.2f}",
+            f"{r_fr_oasis:.2f}", f"{mae_fr_oasis:.2f}",
+            f"{r_inq_oasis:.2f}", f"{mae_inq_oasis:.2f}"
+        ]
+
+    # Calcular linhas
+    row_val = calculate_metrics(df_stats_val, "Valence")
+    row_aro = calculate_metrics(df_stats_aro, "Arousal")
+
+    # Criar DataFrame da Tabela
+    df_table = pd.DataFrame([row_val, row_aro], columns=[
+        "FR vs Survey (r)", "FR vs Survey (MAE)",
+        "FR vs OASIS (r)", "FR vs OASIS (MAE)",
+        "Survey vs OASIS (r)", "Survey vs OASIS (MAE)"
+    ])
+    df_table.insert(0, "Metric", ["Valence (Peak Min)", "Arousal (Peak Max)"])
+
+    st.table(df_table)
+    
+    st.caption("ℹ️ This table uses the peak logic: Min for Valence, Max for Arousal.")
 # ==============================================================================
 # ABA 2: ANÁLISE INDIVIDUAL
 # ==============================================================================
@@ -293,5 +340,6 @@ with tab_individual:
         # --- CORREÇÃO DO ERRO AQUI ---
         # Aplicamos formatação apenas nas colunas numéricas (Diff Valence e Diff Arousal)
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
 
