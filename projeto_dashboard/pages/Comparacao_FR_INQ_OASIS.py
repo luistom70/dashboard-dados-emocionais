@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import re  # <--- IMPORTANTE: Importar regex para extrair números com segurança
+import re
 from utils import (
     carregar_dados, carregar_inqueritos, carregar_oasis,
     comparar_face_reader_vs_inquerito, adicionar_distancia_emocional,
@@ -73,7 +73,6 @@ with tab_global:
          "Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]
     ].mean().reset_index()
 
-    # --- CORREÇÃO DO INDEX ERROR AQUI ---
     # Usamos a função robusta em vez de split("_")[1]
     df_global["ImgNum"] = df_global["Imagem"].apply(extrair_numero_imagem)
     df_global = df_global.sort_values("ImgNum")
@@ -121,7 +120,10 @@ with tab_global:
     st.plotly_chart(fig_global, use_container_width=True, config=config_global)
     
     with st.expander("View Global Data Table"):
-        st.dataframe(df_global.style.format("{:.3f}"))
+        # --- CORREÇÃO DO ERRO AQUI ---
+        # Só aplicamos a formatação {:.3f} nas colunas que são FLOAT
+        float_cols = df_global.select_dtypes(include='float').columns
+        st.dataframe(df_global.style.format("{:.3f}", subset=float_cols))
 
 # ==============================================================================
 # ABA 2: ANÁLISE INDIVIDUAL
@@ -137,7 +139,6 @@ with tab_individual:
 
     nome_sel = st.selectbox("Select Athlete:", atletas_list["Jogadora"])
     
-    # Proteção contra erros de seleção
     try:
         id_sel = atletas_list[atletas_list["Jogadora"] == nome_sel]["ID"].values[0]
     except IndexError:
@@ -146,7 +147,7 @@ with tab_individual:
 
     df_sel = df_final[df_final["ID"] == id_sel].copy()
     
-    # Ordenar usando a função robusta também aqui
+    # Ordenar usando a função robusta
     df_sel["ImgNum"] = df_sel["Imagem"].apply(extrair_numero_imagem)
     df_sel = df_sel.sort_values("ImgNum")
     
@@ -167,7 +168,6 @@ with tab_individual:
     
     df_plot["Fonte"] = df_plot["Fonte"].str.replace("Valence_", "").str.replace("Arousal_", "").str.replace("Inquerito", "Survey")
     
-    # --- CORREÇÃO DO INDEX ERROR AQUI TAMBÉM ---
     df_plot["ImgNum"] = df_plot["Imagem"].apply(extrair_numero_imagem)
     df_plot["Image_Label"] = df_plot["ImgNum"].apply(lambda x: f"Img {x}")
     df_plot = df_plot.sort_values(["Dimension", "ImgNum"])
@@ -219,7 +219,6 @@ with tab_individual:
     # --- TABELAS ---
     st.subheader("📋 Correlation & Error Summary")
     
-    # Tratamento para evitar erro se correlação for NaN
     def safe_corr(df, col1, col2):
         if df.empty: return 0.0
         val = df[[col1, col2]].corr().iloc[0, 1]
@@ -253,7 +252,10 @@ with tab_individual:
         ]
     })
 
-    st.dataframe(df_stats.style.format("{:.3f}"))
+    # --- CORREÇÃO DO ERRO AQUI ---
+    # Só formatamos as colunas numéricas
+    float_cols_stats = df_stats.select_dtypes(include='float').columns
+    st.dataframe(df_stats.style.format("{:.3f}", subset=float_cols_stats))
 
     # Discrepâncias
     df_sel["Val_diff"] = (df_sel["Valence_FaceReader"] - df_sel["Valence_Inquerito"]).abs()
@@ -263,8 +265,11 @@ with tab_individual:
 
     if not discrepancias.empty:
         st.warning("⚠️ High Discrepancies Detected (FaceReader vs Survey > 0.4)")
-        st.dataframe(discrepancias[["Imagem", "Val_diff", "Aro_diff"]].rename(columns={
+        # Selecionar apenas as colunas que queremos mostrar e renomear
+        df_discr_show = discrepancias[["Imagem", "Val_diff", "Aro_diff"]].rename(columns={
             "Val_diff": "Diff Valence", "Aro_diff": "Diff Arousal"
-        }).style.format("{:.3f}"))
-
+        })
+        # --- CORREÇÃO DO ERRO AQUI ---
+        # Aplicamos formatação apenas nas colunas numéricas (Diff Valence e Diff Arousal)
+        st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
 
