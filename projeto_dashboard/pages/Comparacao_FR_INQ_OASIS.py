@@ -65,27 +65,43 @@ tab_global, tab_individual = st.tabs(["🌍 Global Analysis (Paper)", "👤 Indi
 # ==============================================================================
 with tab_global:
     st.header("Global Trends (All Athletes Aggregated)")
-    st.caption("This view compares the mean values across all athletes to identify general trends and discrepancies.")
+    st.caption("Compare how different aggregation methods affect the alignment between sources.")
 
-    # Calcular Médias Globais por Imagem
+    # --- NOVO: SELETOR DE AGREGAÇÃO ---
+    col_agg, col_metric = st.columns(2)
+    with col_agg:
+        agg_method = st.selectbox(
+            "Aggregation Method:", 
+            ["Mean (Average)", "Max (Peak Positive)", "Min (Peak Negative)"],
+            help="Mean: Smooths noise. Max: Good for Arousal/Happiness. Min: Good for Sadness/Fear."
+        )
+    with col_metric:
+        metric = st.radio("Select Metric:", ["Valence", "Arousal"], horizontal=True)
+
+    # Definir função de agregação baseada na escolha
+    if "Mean" in agg_method:
+        agg_func = 'mean'
+    elif "Max" in agg_method:
+        agg_func = 'max'
+    else: # Min
+        agg_func = 'min'
+
+    # Calcular Global usando a função escolhida
     df_global = df_final.groupby("Imagem")[
         ["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS",
          "Arousal_FaceReader", "Arousal_Inquerito", "Arousal_OASIS"]
-    ].mean().reset_index()
+    ].agg(agg_func).reset_index()
 
-    # Usamos a função robusta em vez de split("_")[1]
+    # Ordenação Robusta
     df_global["ImgNum"] = df_global["Imagem"].apply(extrair_numero_imagem)
     df_global = df_global.sort_values("ImgNum")
     df_global["Label"] = df_global["ImgNum"].apply(lambda x: f"Img {x}")
-
-    # Seletor de Métrica
-    metric = st.radio("Select Metric for Global Comparison:", ["Valence", "Arousal"], horizontal=True)
 
     # Preparar dados Plotly
     cols = [f"{metric}_FaceReader", f"{metric}_Inquerito", f"{metric}_OASIS"]
     df_melt = df_global.melt(id_vars=["Label"], value_vars=cols, var_name="Source", value_name="Value")
     
-    # Limpar nomes para a legenda
+    # Limpeza de nomes
     df_melt["Source"] = df_melt["Source"].str.replace(f"{metric}_", "").replace("Inquerito", "Survey")
 
     # Cores
@@ -98,14 +114,14 @@ with tab_global:
         color="Source",
         barmode="group",
         color_discrete_map=colors,
-        title=f"Global Mean Comparison: {metric}",
+        title=f"Global Comparison ({agg_method}): {metric}",
         height=500,
         template="plotly_white"
     )
 
     fig_global.update_layout(
         xaxis_title="Stimulus (Image)",
-        yaxis_title=f"Mean {metric} (Normalized)",
+        yaxis_title=f"{metric} Value ({agg_method})",
         legend_title="Data Source",
         font=dict(size=14)
     )
@@ -113,17 +129,22 @@ with tab_global:
     # Configuração Download
     config_global = {
         'toImageButtonOptions': {
-            'format': 'png', 'filename': f'global_comparison_{metric}',
+            'format': 'png', 'filename': f'global_comparison_{metric}_{agg_method}',
             'height': 600, 'width': 1000, 'scale': 2
         }
     }
     st.plotly_chart(fig_global, use_container_width=True, config=config_global)
     
+    # Mostrar Tabela
     with st.expander("View Global Data Table"):
-        # --- CORREÇÃO DO ERRO AQUI ---
-        # Só aplicamos a formatação {:.3f} nas colunas que são FLOAT
         float_cols = df_global.select_dtypes(include='float').columns
         st.dataframe(df_global.style.format("{:.3f}", subset=float_cols))
+        
+    # --- DICA DE ANÁLISE ---
+    if metric == "Arousal":
+        st.info("💡 **Tip for Arousal:** Try selecting **'Max (Peak Positive)'**. Since Arousal is purely intensity (0 to 1), the Maximum usually captures the true reaction better than the Mean.")
+    elif metric == "Valence":
+        st.info("💡 **Tip for Valence:** \n- For **Happy** images, use **'Max'**.\n- For **Sad/Angry** images, use **'Min'**.\n- The 'Mean' tends to flatten everything towards zero.")
 
 # ==============================================================================
 # ABA 2: ANÁLISE INDIVIDUAL
@@ -272,4 +293,5 @@ with tab_individual:
         # --- CORREÇÃO DO ERRO AQUI ---
         # Aplicamos formatação apenas nas colunas numéricas (Diff Valence e Diff Arousal)
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
