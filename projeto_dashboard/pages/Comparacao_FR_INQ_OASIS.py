@@ -134,6 +134,62 @@ with tab_global:
         }
     }
     st.plotly_chart(fig_global, use_container_width=True, config=config_global)
+
+    st.markdown("---")
+    st.subheader("🛡️ Emotional Regulation Index (The 'Stoicism' Gap)")
+    st.caption("Difference between Reported Intensity (Survey) and Physiological Intensity (FaceReader). Higher bars indicate higher emotional suppression.")
+
+    # 1. Calcular a diferença média por ATLETA (não por imagem)
+    # Usamos os Picos: Inquérito (Max) - FaceReader (Max)
+    # Se a diferença for grande, é porque ela diz que sente muito mas a cara não mostra.
+    
+    # Agrupar por atleta e pegar nos máximos de cada imagem
+    df_regulation = df_final.groupby(["ID", "Jogadora", "Imagem"])[
+        ["Arousal_Inquerito", "Arousal_FaceReader"]
+    ].max().reset_index()
+
+    # Calcular a média dos máximos por atleta
+    df_reg_atleta = df_regulation.groupby(["ID", "Jogadora"])[
+        ["Arousal_Inquerito", "Arousal_FaceReader"]
+    ].mean().reset_index()
+
+    # Calcular o Índice de Supressão (Inquérito - FaceReader)
+    df_reg_atleta["Suppression_Index"] = df_reg_atleta["Arousal_Inquerito"] - df_reg_atleta["Arousal_FaceReader"]
+    
+    # Classificar: Index > 0.4 é "High Regulation", < 0.2 é "Low Regulation"
+    def classify_reg(val):
+        if val > 0.5: return "High Suppression (Stoic)"
+        if val > 0.3: return "Moderate Regulation"
+        return "Low Suppression (Expressive)"
+    
+    df_reg_atleta["Profile"] = df_reg_atleta["Suppression_Index"].apply(classify_reg)
+    
+    # Ordenar
+    df_reg_atleta = df_reg_atleta.sort_values("Suppression_Index", ascending=False)
+
+    # Gráfico
+    fig_reg = px.bar(
+        df_reg_atleta,
+        x="ID", # Ou "Jogadora" se quiseres nomes
+        y="Suppression_Index",
+        color="Profile",
+        title="Emotional Regulation Profile per Athlete",
+        labels={"Suppression_Index": "Suppression Gap (Survey - FaceReader)", "ID": "Athlete ID"},
+        color_discrete_map={
+            "High Suppression (Stoic)": "#d62728", # Vermelho
+            "Moderate Regulation": "#ff7f0e",      # Laranja
+            "Low Suppression (Expressive)": "#2ca02c" # Verde
+        },
+        height=500,
+        template="plotly_white"
+    )
+    
+    fig_reg.add_hline(y=0, line_dash="dash", line_color="black")
+    
+    st.plotly_chart(fig_reg, use_container_width=True, config={'toImageButtonOptions': {'format': 'png', 'filename': 'regulation_index', 'scale': 2}})
+    
+    with st.expander("Ver Tabela de Regulação"):
+        st.dataframe(df_reg_atleta.style.format("{:.3f}", subset=["Arousal_Inquerito", "Arousal_FaceReader", "Suppression_Index"]))
     
     # Mostrar Tabela
     with st.expander("View Global Data Table"):
@@ -339,6 +395,7 @@ with tab_individual:
             "Val_diff": "Diff Valence", "Aro_diff": "Diff Arousal"
         })
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
 
 
