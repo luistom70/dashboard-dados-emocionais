@@ -63,6 +63,9 @@ tab_global, tab_individual = st.tabs(["🌍 Global Analysis (Paper)", "👤 Indi
 # ==============================================================================
 # ABA 1: ANÁLISE GLOBAL (Para o Artigo)
 # ==============================================================================
+# ==============================================================================
+# ABA 1: ANÁLISE GLOBAL (Para o Artigo)
+# ==============================================================================
 with tab_global:
     st.header("Global Trends (All Athletes Aggregated)")
     st.caption("Compare how different aggregation methods affect the alignment between sources.")
@@ -104,9 +107,14 @@ with tab_global:
     # Limpeza de nomes
     df_melt["Source"] = df_melt["Source"].str.replace(f"{metric}_", "").replace("Inquerito", "Survey")
 
-    # Cores
-    colors = {"FaceReader": "#1f77b4", "Survey": "#ff7f0e", "OASIS": "#2ca02c"}
+    # Cores Científicas (Alto Contraste)
+    colors = {
+        "FaceReader": "#1f77b4", # Azul forte
+        "Survey": "#ff7f0e",     # Laranja forte
+        "OASIS": "#2ca02c"       # Verde forte
+    }
 
+    # 1. GRÁFICO DE BARRAS GLOBAL (SCIENTIFIC STYLE)
     fig_global = px.bar(
         df_melt,
         x="Label",
@@ -115,22 +123,44 @@ with tab_global:
         barmode="group",
         color_discrete_map=colors,
         title=f"Global Comparison ({agg_method}): {metric}",
-        height=500,
-        template="plotly_white"
+        height=600 # Mais alto para se ler bem
     )
 
+    # Layout Profissional (Fundo Branco, Letras Grandes)
     fig_global.update_layout(
-        xaxis_title="Stimulus (Image)",
-        yaxis_title=f"{metric} Value ({agg_method})",
-        legend_title="Data Source",
-        font=dict(size=14)
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        title=dict(font=dict(size=22, color='black', family="Arial"), y=0.95),
+        xaxis=dict(
+            title="Stimulus (Image ID)",
+            title_font=dict(size=18, family="Arial Black"),
+            tickfont=dict(size=14, color='black'),
+            showline=True, linecolor='black', linewidth=2
+        ),
+        yaxis=dict(
+            title=f"{metric} Value ({agg_func.capitalize()})",
+            title_font=dict(size=18, family="Arial Black"),
+            tickfont=dict(size=14, color='black'),
+            showgrid=True, gridcolor='lightgrey',
+            showline=True, linecolor='black', linewidth=2,
+            zeroline=True, zerolinecolor='black'
+        ),
+        legend=dict(
+            title="Data Source",
+            font=dict(size=16),
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="black", borderwidth=1,
+            yanchor="top", y=0.99, xanchor="left", x=0.01
+        ),
+        bargap=0.15, # Espaço entre grupos
+        bargroupgap=0.05 # Espaço entre barras do mesmo grupo
     )
 
-    # Configuração Download
+    # Configuração Download Alta Resolução
     config_global = {
         'toImageButtonOptions': {
             'format': 'png', 'filename': f'global_comparison_{metric}_{agg_method}',
-            'height': 600, 'width': 1000, 'scale': 2
+            'height': 800, 'width': 1200, 'scale': 2
         }
     }
     st.plotly_chart(fig_global, use_container_width=True, config=config_global)
@@ -139,9 +169,8 @@ with tab_global:
     st.subheader("🛡️ Emotional Regulation Index (The 'Stoicism' Gap)")
     st.caption("Difference between Reported Intensity (Survey) and Physiological Intensity (FaceReader). Higher bars indicate higher emotional suppression.")
 
-    # 1. Calcular a diferença média por ATLETA (não por imagem)
+    # 2. CALCULAR ÍNDICE DE REGULAÇÃO
     # Usamos os Picos: Inquérito (Max) - FaceReader (Max)
-    # Se a diferença for grande, é porque ela diz que sente muito mas a cara não mostra.
     
     # Agrupar por atleta e pegar nos máximos de cada imagem
     df_regulation = df_final.groupby(["ID", "Jogadora", "Imagem"])[
@@ -158,54 +187,86 @@ with tab_global:
     
     # Classificar: Index > 0.4 é "High Regulation", < 0.2 é "Low Regulation"
     def classify_reg(val):
-        if val > 0.5: return "High Suppression (Stoic)"
-        if val > 0.3: return "Moderate Regulation"
+        if val > 0.4: return "High Suppression (Stoic)" # Ajustei para 0.4 para ser mais sensível
+        if val > 0.2: return "Moderate Regulation"
         return "Low Suppression (Expressive)"
     
     df_reg_atleta["Profile"] = df_reg_atleta["Suppression_Index"].apply(classify_reg)
     
     # Ordenar
     df_reg_atleta = df_reg_atleta.sort_values("Suppression_Index", ascending=False)
+    # Criar Label do Eixo X (ID do Atleta)
+    df_reg_atleta["ID_Label"] = df_reg_atleta["ID"].apply(lambda x: f"ID {x}")
 
-    # Gráfico
+    # 3. GRÁFICO DE REGULAÇÃO (SCIENTIFIC STYLE)
+    # Cores semânticas
+    color_map = {
+        "High Suppression (Stoic)": "#d62728",      # Vermelho (Alerta)
+        "Moderate Regulation": "#ff7f0e",           # Laranja
+        "Low Suppression (Expressive)": "#2ca02c"   # Verde (Natural)
+    }
+
     fig_reg = px.bar(
         df_reg_atleta,
-        x="ID", # Ou "Jogadora" se quiseres nomes
+        x="ID_Label", # ID 1, ID 2...
         y="Suppression_Index",
         color="Profile",
         title="Emotional Regulation Profile per Athlete",
-        labels={"Suppression_Index": "Suppression Gap (Survey - FaceReader)", "ID": "Athlete ID"},
-        color_discrete_map={
-            "High Suppression (Stoic)": "#d62728", # Vermelho
-            "Moderate Regulation": "#ff7f0e",      # Laranja
-            "Low Suppression (Expressive)": "#2ca02c" # Verde
-        },
-        height=500,
-        template="plotly_white"
+        labels={"Suppression_Index": "Stoicism Gap (Survey - FaceReader)", "ID_Label": "Athlete"},
+        color_discrete_map=color_map,
+        height=600
     )
     
-    fig_reg.add_hline(y=0, line_dash="dash", line_color="black")
+    # Linha Zero (Referência)
+    fig_reg.add_hline(y=0, line_dash="dash", line_color="black", line_width=2)
     
-    st.plotly_chart(fig_reg, use_container_width=True, config={'toImageButtonOptions': {'format': 'png', 'filename': 'regulation_index', 'scale': 2}})
+    # Layout Profissional
+    fig_reg.update_layout(
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        title=dict(font=dict(size=22, color='black', family="Arial"), y=0.95),
+        xaxis=dict(
+            title="Athlete ID",
+            title_font=dict(size=18, family="Arial Black"),
+            tickfont=dict(size=14, color='black'),
+            showline=True, linecolor='black', linewidth=2
+        ),
+        yaxis=dict(
+            title="Suppression Index (Gap)",
+            title_font=dict(size=18, family="Arial Black"),
+            tickfont=dict(size=14, color='black'),
+            showgrid=True, gridcolor='lightgrey',
+            showline=True, linecolor='black', linewidth=2
+        ),
+        legend=dict(
+            title="Regulation Profile",
+            font=dict(size=14),
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="black", borderwidth=1
+        )
+    )
+    
+    st.plotly_chart(fig_reg, use_container_width=True, config={'toImageButtonOptions': {'format': 'png', 'filename': 'regulation_index_scientific', 'scale': 2}})
     
     with st.expander("Ver Tabela de Regulação"):
         st.dataframe(df_reg_atleta.style.format("{:.3f}", subset=["Arousal_Inquerito", "Arousal_FaceReader", "Suppression_Index"]))
     
-    # Mostrar Tabela
+    # Mostrar Tabela Global
     with st.expander("View Global Data Table"):
         float_cols = df_global.select_dtypes(include='float').columns
         st.dataframe(df_global.style.format("{:.3f}", subset=float_cols))
         
-    # --- DICA DE ANÁLISE ---
+    # --- DICAS ---
     if metric == "Arousal":
-        st.info("💡 **Tip for Arousal:** Try selecting **'Max (Peak Positive)'**. Since Arousal is purely intensity (0 to 1), the Maximum usually captures the true reaction better than the Mean.")
+        st.info("💡 **Tip for Arousal:** Try selecting **'Max (Peak Positive)'**. Maximum intensity usually captures true reactivity better than Mean.")
     elif metric == "Valence":
-        st.info("💡 **Tip for Valence:** \n- For **Happy** images, use **'Max'**.\n- For **Sad/Angry** images, use **'Min'**.\n- The 'Mean' tends to flatten everything towards zero.")
+        st.info("💡 **Tip for Valence:** For negative images, use **'Min'** to capture the frown. Mean smooths it out.")
 
-    # --- TABELA COMPARATIVA: MÉDIA VS PICO ---
+    # --- TABELA COMPARATIVA (Igual, só formatação se quiseres) ---
     st.markdown("---")
     st.subheader("📊 Statistical Validation: Mean vs. Peak")
-
+    
+    # ... (O teu código da tabela mantém-se igual, tabelas padrão do Streamlit são ok) ...
     # 1. Calcular Dados Agregados por MÉDIA (Baseline)
     df_mean = df_final.groupby("Imagem")[
         ["Valence_FaceReader", "Valence_Inquerito", "Valence_OASIS",
@@ -225,7 +286,6 @@ with tab_global:
     def get_row_data(df, metric, label):
         fr = f"{metric}_FaceReader"
         inq = f"{metric}_Inquerito"
-        # O nome da coluna OASIS é fixo como Valence_OASIS ou Arousal_OASIS
         col_oasis = f"{metric}_OASIS"
 
         r_fr = df[fr].corr(df[col_oasis])
@@ -238,18 +298,12 @@ with tab_global:
 
     # Construir as linhas
     data = []
-    
-    # Valência
     data.append(get_row_data(df_mean, "Valence", "Valence (Mean)"))
     data.append(get_row_data(df_min, "Valence", "Valence (Peak: Min)"))
-    
-    # Arousal
     data.append(get_row_data(df_mean, "Arousal", "Arousal (Mean)"))
     data.append(get_row_data(df_max, "Arousal", "Arousal (Peak: Max)"))
 
-    # Criar DataFrame
     df_table_comp = pd.DataFrame(data, columns=["Method", "FR vs OASIS (r)", "FR vs OASIS (MAE)", "Survey vs OASIS (r)", "Survey vs OASIS (MAE)"])
-    
     st.table(df_table_comp)
     st.caption("This table proves why Peak analysis is superior to Mean analysis for this dataset.")
 
@@ -395,6 +449,7 @@ with tab_individual:
             "Val_diff": "Diff Valence", "Aro_diff": "Diff Arousal"
         })
         st.dataframe(df_discr_show.style.format("{:.3f}", subset=["Diff Valence", "Diff Arousal"]))
+
 
 
 
