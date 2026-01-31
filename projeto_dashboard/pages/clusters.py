@@ -62,69 +62,116 @@ df_cluster["Cluster"] = df_cluster["Cluster_Num"].apply(lambda x: f"Cluster {x +
 # 4. Calcular Silhouette Score
 score = silhouette_score(X, df_cluster["Cluster_Num"])
 
-# 5. Criar Gráfico
-fig = px.scatter(
-    df_cluster,
-    x="Valence",
-    y="Arousal",
-    color="Cluster",
-    text="Label",
-    title=f"Emotional Profile Clusters (k={k})",
-    labels={"Valence": "Mean Valence", "Arousal": "Mean Arousal"},
-    height=600,
-    template="plotly_white"  # Garante fundo branco para o artigo!
-)
+# 5. Criar Gráfico (Scientific Style com Plotly Graph Objects)
+fig = go.Figure()
 
-# Adicionar Centróides
+# --- A. ADICIONAR QUADRANTES DE FUNDO (Contexto Semântico) ---
+# Isto ajuda o leitor a saber o que significa "Cluster 1" ou "Cluster 2"
+shapes = [
+    # Distress (Canto Sup. Esq) - Vermelho
+    dict(type="rect", x0=-1, y0=0.5, x1=0, y1=1, fillcolor="red", opacity=0.05, line_width=0),
+    # Excitement (Canto Sup. Dir) - Verde
+    dict(type="rect", x0=0, y0=0.5, x1=1, y1=1, fillcolor="green", opacity=0.05, line_width=0),
+    # Depression/Boredom (Canto Inf. Esq) - Azul
+    dict(type="rect", x0=-1, y0=0, x1=0, y1=0.5, fillcolor="blue", opacity=0.05, line_width=0),
+    # Relaxation (Canto Inf. Dir) - Laranja
+    dict(type="rect", x0=0, y0=0, x1=1, y1=0.5, fillcolor="orange", opacity=0.05, line_width=0)
+]
+fig.update_layout(shapes=shapes)
+
+# --- B. ADICIONAR PONTOS (CLUSTERS) ---
+# Adicionar um trace por cluster para ter cores diferentes e legenda automática
+colors = px.colors.qualitative.Bold # Paleta de cores fortes e distintas
+for i in range(k):
+    cluster_data = df_cluster[df_cluster["Cluster_Num"] == i]
+    fig.add_trace(go.Scatter(
+        x=cluster_data["Valence"],
+        y=cluster_data["Arousal"],
+        mode='markers+text',
+        name=f'Cluster {i+1}',
+        text=cluster_data["Label"], # ID do atleta
+        textposition="top center",
+        textfont=dict(size=14, color='black', family="Arial Black"), # Texto legível
+        marker=dict(
+            size=18, # PONTOS GRANDES
+            color=colors[i % len(colors)],
+            line=dict(width=2, color='black'), # Borda preta para contraste
+            symbol='circle'
+        )
+    ))
+
+# --- C. ADICIONAR CENTRÓIDES ---
 centroids = kmeans.cluster_centers_
-fig.add_trace(
-    go.Scatter(
-        x=centroids[:, 0],
-        y=centroids[:, 1],
-        mode='markers',
-        marker=dict(symbol='x', size=15, color='black', line=dict(width=2)),
-        name='Centroids',
-        showlegend=False
-    )
+fig.add_trace(go.Scatter(
+    x=centroids[:, 0],
+    y=centroids[:, 1],
+    mode='markers',
+    name='Centroids',
+    marker=dict(symbol='x', size=20, color='black', line=dict(width=4)),
+    showlegend=True
+))
+
+# --- D. LAYOUT CIENTÍFICO (Letras Grandes e Fundo Branco) ---
+fig.update_layout(
+    title=dict(
+        text=f"Emotional Profile Clusters (k={k})",
+        font=dict(size=24, family="Arial", color="black"),
+        y=0.95
+    ),
+    xaxis=dict(
+        title="Mean Valence (Negative ↔ Positive)",
+        title_font=dict(size=20, family="Arial Black"),
+        tickfont=dict(size=16),
+        range=[-1.1, 1.1], # Margem para não cortar
+        showgrid=True,
+        gridcolor='lightgrey',
+        zeroline=True,
+        zerolinecolor='black',
+        zerolinewidth=2
+    ),
+    yaxis=dict(
+        title="Mean Arousal (Low ↔ High)",
+        title_font=dict(size=20, family="Arial Black"),
+        tickfont=dict(size=16),
+        range=[-0.1, 1.1],
+        showgrid=True,
+        gridcolor='lightgrey'
+    ),
+    legend=dict(
+        font=dict(size=16),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="black",
+        borderwidth=1,
+        yanchor="top", y=0.99, xanchor="left", x=0.01
+    ),
+    plot_bgcolor='white', # Fundo branco absoluto
+    height=700,
+    margin=dict(l=80, r=40, t=80, b=80)
 )
 
-# --- NOVIDADE: Adicionar o Score DENTRO do Gráfico ---
+# --- E. ANOTAÇÕES (SCORE E SIGNIFICADO) ---
+# Silhouette Score
 fig.add_annotation(
     text=f"<b>Silhouette Score: {score:.3f}</b>",
     xref="paper", yref="paper",
-    x=0.02, y=0.98,  # Posição (Canto Superior Esquerdo)
+    x=1, y=1.08, # Canto superior direito (fora do gráfico)
     showarrow=False,
-    font=dict(size=14, color="black"),
-    bgcolor="rgba(255, 255, 255, 0.9)",
-    bordercolor="black",
-    borderwidth=1
+    font=dict(size=16, color="black"),
+    bgcolor="white", bordercolor="black", borderwidth=1
 )
 
-# Estilização Profissional
-fig.update_traces(
-    textposition="top center", 
-    textfont=dict(color="black", size=12), 
-    marker=dict(size=14, line=dict(width=1, color='DarkSlateGrey'))
-)
-
-fig.update_layout(
-    xaxis=dict(showgrid=True, gridcolor='#E5E5E5', range=[-1.1, 1.1], zeroline=True, zerolinecolor='black'),
-    yaxis=dict(showgrid=True, gridcolor='#E5E5E5', range=[-0.1, 1.1], zeroline=True, zerolinecolor='black'),
-    legend_title_text='Group',
-    legend=dict(
-        yanchor="top",
-        y=0.99,
-        xanchor="right",
-        x=0.99
-    )
-)
+# Etiquetas Semânticas (Discretas)
+fig.add_annotation(x=-0.9, y=0.95, text="DISTRESS", showarrow=False, font=dict(size=14, color="gray"))
+fig.add_annotation(x=0.9, y=0.95, text="EXCITEMENT", showarrow=False, font=dict(size=14, color="gray"))
+fig.add_annotation(x=-0.9, y=0.05, text="BOREDOM", showarrow=False, font=dict(size=14, color="gray"))
+fig.add_annotation(x=0.9, y=0.05, text="RELAXATION", showarrow=False, font=dict(size=14, color="gray"))
 
 # Configurar Download Alta Resolução
 config = {
     'toImageButtonOptions': {
         'format': 'png',
-        'filename': 'kmeans_clusters_final',
-        'height': 800,
+        'filename': 'kmeans_clusters_scientific',
+        'height': 1000, # Alta resolução
         'width': 1200,
         'scale': 2
     }
