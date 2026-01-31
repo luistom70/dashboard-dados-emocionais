@@ -243,35 +243,65 @@ with col1:
 
 # --- Gráfico 2: Máximos ---
 with col2:
-    fig2, ax2 = plt.subplots(figsize=(6, 6))
-    # Quadrantes
-    ax2.axvspan(-1, 0, ymin=0.5, ymax=1, facecolor='lightcoral', alpha=0.2)
-    ax2.axvspan(0, 1, ymin=0.5, ymax=1, facecolor='khaki', alpha=0.2)
-    ax2.axvspan(-1, 0, ymin=0, ymax=0.5, facecolor='lightblue', alpha=0.2)
-    ax2.axvspan(0, 1, ymin=0, ymax=0.5, facecolor='lightgreen', alpha=0.2)
+    # 1. Criar Figura Quadrada e Maior
+    fig2, ax2 = plt.subplots(figsize=(8, 8)) # 8x8 garante espaço para as anotações
     
-    ax2.scatter(tabela["Valence_Max"], tabela["Arousal_Max"], s=100, color='darkred', edgecolors='white')
+    # Configurar Fundo Branco Limpo
+    fig2.patch.set_facecolor('white')
+    ax2.set_facecolor('white')
+
+    # 2. Quadrantes (Cores mais suaves para não brigar com os dados)
+    # Alpha 0.1 é suficiente para distinguir sem poluir a impressão
+    ax2.axvspan(-1, 0, ymin=0.5, ymax=1, facecolor='#d62728', alpha=0.08) # Anger/Fear (Red)
+    ax2.axvspan(0, 1, ymin=0.5, ymax=1, facecolor='#2ca02c', alpha=0.08)  # Happy/Excited (Green)
+    ax2.axvspan(-1, 0, ymin=0, ymax=0.5, facecolor='#1f77b4', alpha=0.08) # Sad/Bored (Blue)
+    ax2.axvspan(0, 1, ymin=0, ymax=0.5, facecolor='#ff7f0e', alpha=0.08)  # Calm (Orange)
+
+    # 3. Anotações Semânticas (O "Truque" para Relatórios)
+    # Explica o que significa cada área com texto cinzento discreto
+    style_annot = dict(fontsize=12, color='gray', fontweight='bold', alpha=0.6)
+    ax2.text(-0.9, 0.95, "DISTRESS\n(High Negative)", ha='left', va='top', **style_annot)
+    ax2.text(0.9, 0.95, "EXCITEMENT\n(High Positive)", ha='right', va='top', **style_annot)
+    ax2.text(-0.9, 0.05, "DEPRESSION\n(Low Negative)", ha='left', va='bottom', **style_annot)
+    ax2.text(0.9, 0.05, "RELAXATION\n(Low Positive)", ha='right', va='bottom', **style_annot)
+
+    # 4. Dados (Pontos de Alto Contraste)
+    # s=150 (Grande), edgecolor='black' (Contraste)
+    ax2.scatter(tabela["Valence_Max"], tabela["Arousal_Max"], 
+                s=150, color='#b22222', edgecolors='black', linewidth=1.5, zorder=3, alpha=0.9)
     
+    # 5. Labels dos Pontos (Números das Imagens)
     for _, row in tabela.iterrows():
-        img_num = row["Image"].split(" ")[1]
-        ax2.text(row["Valence_Max"] + 0.02, row["Arousal_Max"], img_num, fontsize=9, fontweight='bold')
-        
-    ax2.axvline(0, color='black', linewidth=1)
-    ax2.axhline(0.5, color='black', linewidth=1)
-    ax2.set_xlim(-1, 1)
-    ax2.set_ylim(0, 1)
-    ax2.set_title(f"Max Values - ID {id_atleta}")
-    ax2.set_xlabel("Valence")
-    ax2.set_ylabel("Arousal")
-    ax2.grid(True, linestyle='--', alpha=0.5)
+        img_num = str(row["Image"]).split(" ")[-1] # Garante que apanha só o número
+        ax2.text(row["Valence_Max"] + 0.03, row["Arousal_Max"] + 0.01, 
+                 img_num, fontsize=11, fontweight='bold', color='black', zorder=4)
+
+    # 6. Eixos e Linhas Centrais
+    ax2.axvline(0, color='black', linewidth=1.5, linestyle='-')   # Eixo Y Central
+    ax2.axhline(0.5, color='black', linewidth=1.5, linestyle='-') # Eixo X Central (Arousal médio)
+
+    # 7. Configuração Final dos Eixos (Scientific Style)
+    ax2.set_xlim(-1.1, 1.1) # Margem extra para não cortar pontos na borda
+    ax2.set_ylim(0, 1.05)
     
+    ax2.set_title(f"Peak Response Map - ID {id_atleta}", fontsize=16, fontweight='bold', pad=20)
+    ax2.set_xlabel("Valence (Negative $\leftrightarrow$ Positive)", fontsize=14, fontweight='bold')
+    ax2.set_ylabel("Arousal (Low $\leftrightarrow$ High)", fontsize=14, fontweight='bold')
+    
+    # Tick Labels grandes
+    ax2.tick_params(axis='both', which='major', labelsize=12)
+    
+    # Grelha leve
+    ax2.grid(True, linestyle=':', alpha=0.4, color='gray')
+    
+    # Renderizar
     st.pyplot(fig2)
 
-    # Download Botão 2
+    # Download Botão 2 (Alta Resolução)
     fn_q2 = io.BytesIO()
-    fig2.savefig(fn_q2, format='png', bbox_inches='tight')
+    fig2.savefig(fn_q2, format='png', bbox_inches='tight', dpi=300)
     st.download_button(
-        label="💾 Download Max Quadrant Plot",
+        label="💾 Download Quadrant Plot",
         data=fn_q2,
         file_name=f"quadrant_max_ID{id_atleta}.png",
         mime="image/png"
