@@ -103,53 +103,76 @@ st.subheader("🧭 Average Emotional Profile (Expressive Only)")
 
 # 1. Definir apenas as emoções expressivas (SEM NEUTRAL)
 expressive_cols = ["Happy", "Sad", "Angry", "Surprised", "Scared", "Disgusted"]
-medias = df_atleta[expressive_cols].mean()
 
-# 2. Verificar se há dados expressivos para evitar divisão por zero
-soma_expressiva = medias.sum()
+# Verificação de segurança: garantir que as colunas existem
+if all(col in df_atleta.columns for col in expressive_cols):
+    medias = df_atleta[expressive_cols].mean()
 
-if soma_expressiva > 0.001:  # Se houver alguma expressão mínima
-    # Normalizar: Transforma em "Quota de Mercado" da emoção (Soma = 100%)
-    valores_norm = medias / soma_expressiva
-    
-    # Preparar dados para o plot
-    valores = valores_norm.values
-    angles = np.linspace(0, 2 * np.pi, len(expressive_cols), endpoint=False).tolist()
-    
-    # Fechar o ciclo do radar (repetir o primeiro valor no fim)
-    valores = np.concatenate((valores, [valores[0]]))
-    angles += [angles[0]]
-    
-    # Plotar
-    fig_radar, ax_radar = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-    ax_radar.plot(angles, valores, 'o-', linewidth=2, color='dodgerblue')
-    ax_radar.fill(angles, valores, alpha=0.25, color='dodgerblue')
-    
-    # Ajustar labels
-    ax_radar.set_thetagrids(np.degrees(angles[:-1]), expressive_cols)
-    ax_radar.set_title(f"Expressive Profile (Normalized) - ID {id_atleta}", y=1.1)
-    
-    # Definir limite fixo para ser fácil comparar (0 a 1, ou seja, 0% a 100%)
-    ax_radar.set_ylim(0, 1)
-    
-    # Remover labels radiais numéricas para limpar o visual (opcional)
-    # ax_radar.set_yticklabels([]) 
-    
-    ax_radar.grid(True, linestyle='--', alpha=0.5)
-    st.pyplot(fig_radar)
-    
-    # Botão Download
-    fn_radar = io.BytesIO()
-    fig_radar.savefig(fn_radar, format='png', bbox_inches='tight')
-    st.download_button(
-        label="💾 Download Radar Chart",
-        data=fn_radar,
-        file_name=f"radar_chart_ID{id_atleta}.png",
-        mime="image/png"
-    )
+    # 2. Verificar se há dados expressivos para evitar divisão por zero
+    soma_expressiva = medias.sum()
 
+    if soma_expressiva > 0.001:  # Se houver alguma expressão mínima
+        # Normalizar: Transforma em "Quota de Mercado" da emoção (Soma = 100%)
+        valores_norm = medias / soma_expressiva
+        
+        # Preparar dados para o plot
+        valores = valores_norm.values.tolist()
+        angles = np.linspace(0, 2 * np.pi, len(expressive_cols), endpoint=False).tolist()
+        
+        # Fechar o ciclo do radar (repetir o primeiro valor no fim)
+        valores += [valores[0]]
+        angles += [angles[0]]
+        
+        # Plotar (Configuração Estética para Artigo)
+        fig_radar, ax_radar = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        
+        # Fundo Branco para o PDF
+        fig_radar.patch.set_facecolor('white')
+        ax_radar.set_facecolor('white')
+        
+        # Desenhar linhas e preenchimento
+        # Cor sólida e profissional
+        ax_radar.plot(angles, valores, 'o-', linewidth=2, color='#1f77b4') 
+        ax_radar.fill(angles, valores, alpha=0.25, color='#1f77b4')
+        
+        # Ajustar labels (Letras GRANDES para o Artigo)
+        # set_thetagrids aceita graus, não radianos
+        ax_radar.set_thetagrids(np.degrees(angles[:-1]), expressive_cols)
+        
+        # Personalizar as labels dos eixos (Emoções)
+        ax_radar.tick_params(pad=20, labelsize=14) # Pad afasta o texto do gráfico
+        
+        # Título
+        ax_radar.set_title(f"Expressive Profile (Normalized)\nID {id_atleta}", 
+                           y=1.1, fontsize=16, fontweight='bold')
+        
+        # Definir limite fixo (0 a 1)
+        ax_radar.set_ylim(0, 1)
+        
+        # Remover números do eixo Y (Radial) para limpar o visual
+        ax_radar.set_yticklabels([]) 
+        
+        # Grelha suave
+        ax_radar.grid(True, color='lightgrey', linestyle='--', alpha=0.7)
+        
+        # Mostrar no Streamlit
+        st.pyplot(fig_radar)
+        
+        # Botão Download
+        fn_radar = io.BytesIO()
+        # bbox_inches='tight' é CRUCIAL para não cortar as labels no PNG
+        fig_radar.savefig(fn_radar, format='png', bbox_inches='tight', dpi=300)
+        st.download_button(
+            label="💾 Download Radar Chart",
+            data=fn_radar,
+            file_name=f"radar_chart_ID{id_atleta}.png",
+            mime="image/png"
+        )
+
+    else:
+        st.info("⚠️ This athlete showed almost 100% Neutrality (no expressive emotions detected).")
 else:
-    st.info("⚠️ This athlete showed almost 100% Neutrality (no expressive emotions detected).")
+    st.error("Error: Expressive columns missing from dataset.")
 
 # --- 4. TABELAS DE DADOS ---
 st.subheader("📋 Mean and Max Values per Image")
@@ -253,4 +276,5 @@ with col2:
         file_name=f"quadrant_max_ID{id_atleta}.png",
         mime="image/png"
     )
+
 
